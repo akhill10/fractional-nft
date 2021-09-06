@@ -106,6 +106,7 @@ export default function useContractLoader(providerOrSigner, config = {}) {
             accumulator[contractName] = new ethers.Contract(_address, combinedContracts[contractName].abi, signer);
             return accumulator;
           }, {});
+          
           if (active) setContracts(newContracts);
         } catch (e) {
           console.log("ERROR LOADING CONTRACTS!!", e);
@@ -118,6 +119,6 @@ export default function useContractLoader(providerOrSigner, config = {}) {
       active = false;
     };
   }, [providerOrSigner, config.chainId, config.hardhatNetworkName]);
-
+  console.log("CONTRACTSSSS ::::", contracts);
   return contracts;
 }

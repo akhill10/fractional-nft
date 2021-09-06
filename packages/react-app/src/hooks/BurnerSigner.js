@@ -23,6 +23,7 @@ export default function useBurnerSigner(provider) {
       console.log("generating a new key");
       const _newWallet = ethers.Wallet.createRandom();
       const _newKey = _newWallet.privateKey;
+      console.log('muck', _newWallet, _newKey);
       setValue(_newKey);
     } else {
       setValue(storedKey);

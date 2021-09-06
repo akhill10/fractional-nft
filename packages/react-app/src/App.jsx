@@ -1,5 +1,6 @@
+/* eslint-disable react/jsx-no-comment-textnodes */
 import WalletConnectProvider from "@walletconnect/web3-provider";
-import { Alert, Button, Card, Col, Input, List, Menu, Row } from "antd";
+import { Alert, Button, Card, Col, Input, List, Menu, Row, notification } from "antd";
 import "antd/dist/antd.css";
 import React, { useCallback, useEffect, useState } from "react";
 import ReactJson from "react-json-view";
@@ -7,7 +8,7 @@ import { BrowserRouter, Link, Route, Switch } from "react-router-dom";
 import Web3Modal from "web3modal";
 import "./App.css";
 import { Account, Address, AddressInput, Contract, Faucet, GasGauge, Header, Ramp, ThemeSwitch } from "./components";
-import {INFURA_ID, NETWORK, NETWORKS } from "./constants";
+import { INFURA_ID, NETWORK, NETWORKS } from "./constants";
 import { Transactor } from "./helpers";
 import {
   useBalance,
@@ -19,6 +20,12 @@ import {
   useOnBlock,
   useUserSigner,
 } from "./hooks";
+import * as ContractJSON from "./contracts/hardhat_contracts.json";
+import { erc20 } from "./contracts/external_contracts";
+import { Avataaar, getImageData } from "./avatar";
+import { nftmarketaddress, nftaddress, fractionalize } from "./config";
+import { imageBaseUrl } from "./supabaseConfig";
+
 
 const { BufferList } = require("bl");
 // https://www.npmjs.com/package/ipfs-http-client
@@ -93,8 +100,12 @@ if (DEBUG) console.log("📡 Connecting to Mainnet Ethereum");
 //
 // attempt to connect to our own scaffold eth rpc and if that fails fall back to infura...
 // Using StaticJsonRpcProvider as the chainId won't change see https://github.com/ethers-io/ethers.js/issues/901
-const scaffoldEthProvider = navigator.onLine ? new ethers.providers.StaticJsonRpcProvider("https://rpc.scaffoldeth.io:48544") : null;
-const mainnetInfura = navigator.onLine ? new ethers.providers.StaticJsonRpcProvider("https://mainnet.infura.io/v3/" + INFURA_ID) : null;
+const scaffoldEthProvider = navigator.onLine
+  ? new ethers.providers.StaticJsonRpcProvider("https://rpc.scaffoldeth.io:48544")
+  : null;
+const mainnetInfura = navigator.onLine
+  ? new ethers.providers.StaticJsonRpcProvider("https://mainnet.infura.io/v3/" + INFURA_ID)
+  : null;
 // ( ⚠️ Getting "failed to meet quorum" errors? Check your INFURA_I
 
 // 🏠 Your local provider is usually pointed at your local blockchain
@@ -194,39 +205,87 @@ function App(props) {
   ]);
 
   // keep track of a variable from the contract in the local React state:
-  const balance = useContractReader(readContracts, "YourCollectible", "balanceOf", [address]);
-  console.log("🤗 balance:", balance);
+  const balance = useContractReader(readContracts, "NFT", "balanceOf", [address]);
+  console.log("🤗 balanceee:", balance);
+
+  console.log("imageBaseUrl", process.env.imageBaseUrl);
 
   // 📟 Listen for broadcast events
   const transferEvents = useEventListener(readContracts, "YourCollectible", "Transfer", localProvider, 1);
   console.log("📟 Transfer events:", transferEvents);
+  const [Attributes, setAttributes] = useState({
+    topType: "ShortHairShortWaved",
+    accessoriesType: "Prescription02",
+    hairColor: "BrownDark",
+    facialHairType: "Blank",
+    clotheType: "Hoodie",
+    clotheColor: "PastelBlue",
+    eyeType: "Happy",
+    eyebrowType: "Default",
+    mouthType: "Smile",
+    avatarStyle: "Circle",
+    skinColor: "Light",
+  });
 
+  // const marketItems = useContractReader(readContracts, "NFTMarket", "fetchMarketItems");
   //
   // 🧠 This effect will update yourCollectibles by polling when your balance changes
   //
   const yourBalance = balance && balance.toNumber && balance.toNumber();
   const [yourCollectibles, setYourCollectibles] = useState();
+  // const [unsoldItems, setUnsoldItems] = useState();
+  const [nfts, setNfts] = useState([]);
+  async function loadNfts() {
+    const allItems = [];
+    const provider = new ethers.providers.JsonRpcProvider();
+    const tokenContract = new ethers.Contract(nftaddress, ContractJSON[31337].localhost.contracts.NFT.abi, provider);
+    const marketContract = new ethers.Contract(
+      nftmarketaddress,
+      ContractJSON[31337].localhost.contracts.NFTMarket.abi,
+      provider,
+    );
+    const data = await marketContract.fetchMarketItems();
+    console.log("DATATA", data);
+
+    const items = await Promise.all(
+      data.map(async i => {
+        const tokenUri = await tokenContract.tokenURI(i.tokenId);
+        console.log("Token URI :::", tokenUri);
+        const ipfsHash = tokenUri.replace("ipfs://", "");
+        const jsonManifestBuffer = await getFromIPFS(ipfsHash);
+        const jsonManifest = JSON.parse(jsonManifestBuffer.toString());
+        console.log("jsonManifest", jsonManifest);
+
+        const price = ethers.utils.formatUnits(i.price.toString(), "ether");
+        const item = {
+          price,
+          id: i.tokenId.toNumber(),
+          seller: i.seller,
+          owner: i.owner,
+          ...jsonManifest,
+        };
+        allItems.push(item);
+      }),
+    );
+    setNfts(allItems);
+  }
+  useEffect(() => {
+    // eslint-disable-next-line no-use-before-define
+    loadNfts();
+  }, [address, yourBalance]);
 
   useEffect(() => {
     const updateYourCollectibles = async () => {
       const collectibleUpdate = [];
       for (let tokenIndex = 0; tokenIndex < balance; tokenIndex++) {
         try {
-          console.log("GEtting token index", tokenIndex);
-          const tokenId = await readContracts.YourCollectible.tokenOfOwnerByIndex(address, tokenIndex);
-          console.log("tokenId", tokenId);
-          const tokenURI = await readContracts.YourCollectible.tokenURI(tokenId);
-          console.log("tokenURI", tokenURI);
-
-          const ipfsHash = tokenURI.replace("https://ipfs.io/ipfs/", "");
-          console.log("ipfsHash", ipfsHash);
-
+          const tokenId = await readContracts.NFT.tokenOfOwnerByIndex(address, tokenIndex);
+          const tokenURI = await readContracts.NFT.tokenURI(tokenId);
+          const ipfsHash = tokenURI.replace("ipfs://", "");
           const jsonManifestBuffer = await getFromIPFS(ipfsHash);
-
           try {
             const jsonManifest = JSON.parse(jsonManifestBuffer.toString());
-            console.log("jsonManifest", jsonManifest);
-            collectibleUpdate.push({ id: tokenId, uri: tokenURI, owner: address, ...jsonManifest });
+            collectibleUpdate.push({ id: tokenId.toString(), uri: tokenURI, owner: address, ...jsonManifest });
           } catch (e) {
             console.log(e);
           }
@@ -331,7 +390,8 @@ function App(props) {
                   }}
                 >
                   <b>{networkLocal && networkLocal.name}</b>
-                </Button>.
+                </Button>
+                .
               </div>
             }
             type="error"
@@ -399,7 +459,7 @@ function App(props) {
           onClick={() => {
             faucetTx({
               to: address,
-              value: ethers.utils.parseEther("0.01"),
+              value: ethers.utils.parseEther("1"),
             });
             setFaucetClicked(true);
           }}
@@ -414,6 +474,14 @@ function App(props) {
   const [sending, setSending] = useState();
   const [ipfsHash, setIpfsHash] = useState();
   const [ipfsDownHash, setIpfsDownHash] = useState();
+  const [nftValue, setnftValue] = useState();
+  const [description, setDescription] = useState();
+  const [fnftContractAddress, setFnftCA] = useState();
+  const [fnftTokenId, setFnftTokenId] = useState();
+  const [external_url, setExternalUrl] = useState();
+  const [image_url, setImageUrl] = useState();
+  const [name, setName] = useState();
+  const [priceNFT, setpriceNFT] = useState();
 
   const [downloading, setDownloading] = useState();
   const [ipfsContent, setIpfsContent] = useState();
@@ -427,24 +495,14 @@ function App(props) {
       {networkDisplay}
       <BrowserRouter>
         <Menu style={{ textAlign: "center" }} selectedKeys={[route]} mode="horizontal">
-          <Menu.Item key="/">
+          <Menu.Item key="/home">
             <Link
               onClick={() => {
-                setRoute("/");
+                setRoute("/home");
               }}
-              to="/"
+              to="/home"
             >
-              YourCollectibles
-            </Link>
-          </Menu.Item>
-          <Menu.Item key="/transfers">
-            <Link
-              onClick={() => {
-                setRoute("/transfers");
-              }}
-              to="/transfers"
-            >
-              Transfers
+              <b>Home</b>
             </Link>
           </Menu.Item>
           <Menu.Item key="/create">
@@ -454,10 +512,30 @@ function App(props) {
               }}
               to="/create"
             >
-              Create-Emoji
+              <b>Create</b>
             </Link>
           </Menu.Item>
-          <Menu.Item key="/ipfsup">
+          <Menu.Item key="/">
+            <Link
+              onClick={() => {
+                setRoute("/");
+              }}
+              to="/"
+            >
+              <b>YourCollectibles</b>
+            </Link>
+          </Menu.Item>
+          <Menu.Item key="/redeem">
+            <Link
+              onClick={() => {
+                setRoute("/redeem");
+              }}
+              to="/redeem"
+            >
+              Redeem Fractionalized NFT
+            </Link>
+          </Menu.Item>
+          {/* <Menu.Item key="/ipfsup">
             <Link
               onClick={() => {
                 setRoute("/ipfsup");
@@ -486,7 +564,7 @@ function App(props) {
             >
               Debug Contracts
             </Link>
-          </Menu.Item>
+          </Menu.Item> */}
         </Menu>
 
         <Switch>
@@ -501,7 +579,7 @@ function App(props) {
                 bordered
                 dataSource={yourCollectibles}
                 renderItem={item => {
-                  const id = item.id.toNumber();
+                  const id = item.id;
                   return (
                     <List.Item key={id + "_" + item.uri + "_" + item.owner}>
                       <Card
@@ -538,10 +616,24 @@ function App(props) {
                         <Button
                           onClick={() => {
                             console.log("writeContracts", writeContracts);
-                            tx(writeContracts.YourCollectible.transferFrom(address, transferToAddresses[id], id));
+                            tx(writeContracts.NFT.transferFrom(address, transferToAddresses[id], id));
                           }}
                         >
                           Transfer
+                        </Button>
+                        <Button
+                          onClick={async () => {
+                            console.log("writeContracts", writeContracts);
+                            await writeContracts.NFT.approve("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9", id);
+                            await writeContracts.Fractionalize.lockAndMint(id, "1000000000000000000000");
+                            const ecr20Frac = await writeContracts.Fractionalize.erc20s(id);
+                            console.log("ALLLL", ecr20Frac);
+                            notification.info({
+                              message: `Contract Address is ${ecr20Frac}`,
+                            });
+                          }}
+                        >
+                          Fractionlize
                         </Button>
                       </div>
                     </List.Item>
@@ -551,21 +643,187 @@ function App(props) {
             </div>
           </Route>
 
-          <Route path="/transfers">
-            <div style={{ width: 600, margin: "auto", marginTop: 32, paddingBottom: 32 }}>
+          <Route path="/home">
+            {/*
+                🎛 this scaffolding is full of commonly used components
+                this <Contract/> component will automatically parse your ABI
+                and give you a form to interact with it locally
+            */}
+            <div style={{ width: 640, margin: "auto", marginTop: 32, paddingBottom: 32 }}>
               <List
                 bordered
-                dataSource={transferEvents}
+                dataSource={nfts}
                 renderItem={item => {
+                  const id = item.id;
                   return (
-                    <List.Item key={item[0] + "_" + item[1] + "_" + item.blockNumber + "_" + item[2].toNumber()}>
-                      <span style={{ fontSize: 16, marginRight: 8 }}>#{item[2].toNumber()}</span>
-                      <Address address={item[0]} ensProvider={mainnetProvider} fontSize={16} /> =&gt;
-                      <Address address={item[1]} ensProvider={mainnetProvider} fontSize={16} />
+                    <List.Item key={id + "_" + item.uri + "_" + item.owner}>
+                      <Card
+                        title={
+                          <div>
+                            <span style={{ fontSize: 16, marginRight: 8 }}>#{id}</span> {item.name}
+                          </div>
+                        }
+                      >
+                        <div>
+                          <img src={item.image} style={{ maxWidth: 150 }} />
+                        </div>
+                        <div>{item.description}</div>
+                      </Card>
+                      <div>
+                        seller:{" "}
+                        <Address
+                          address={item.seller}
+                          ensProvider={mainnetProvider}
+                          blockExplorer={blockExplorer}
+                          fontSize={16}
+                        />
+                      </div>
+                      Price: <b>{item.price}</b>
+                      <div>
+                        <Button
+                          onClick={async () => {
+                            console.log("writeContracts", writeContracts);
+                            const pricex = ethers.utils.parseUnits(item.price.toString(), "ether");
+                            await tx(
+                              writeContracts.NFTMarket.createMarketSale(
+                                "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+                                item.id,
+                                {
+                                  value: pricex,
+                                },
+                              ),
+                            );
+                            window.location.href = "/";
+                          }}
+                        >
+                          BUY
+                        </Button>
+                      </div>
                     </List.Item>
                   );
                 }}
               />
+            </div>
+          </Route>
+
+          <Route path="/create">
+            <div style={{ paddingTop: 32, width: 580, margin: "auto" }}>
+              <div>
+                <Avataaar value={Attributes} onChange={setAttributes} />
+              </div>
+              <br />
+              <b>Name</b>
+              <Input
+                value={name}
+                placeHolder="Sherlock"
+                onChange={e => {
+                  setName(e.target.value);
+                }}
+              />
+              <b>Description</b>
+              <Input
+                value={description}
+                placeHolder="Sherlock character..."
+                onChange={e => {
+                  setDescription(e.target.value);
+                }}
+              />
+              <b>Price (in ether)</b>
+              <Input
+                value={priceNFT}
+                placeHolder="0.00001"
+                onChange={e => {
+                  setpriceNFT(e.target.value);
+                }}
+              />
+            </div>
+            <Button
+              style={{ margin: 8 }}
+              loading={sending}
+              size="large"
+              shape="round"
+              type="primary"
+              onClick={async () => {
+                const imageUrl = getImageData();
+                const image_url = imageBaseUrl + imageUrl;
+                const data = {
+                  description,
+                  image: image_url,
+                  name,
+                };
+                const uploaded = await ipfs.add(JSON.stringify(data));
+                const listingPrice = await readContracts.NFTMarket.getListingPrice();
+                const transaction = await writeContracts.NFT.createToken(uploaded.path);
+                const trans = await transaction.wait();
+                const event = trans.events[0];
+                const value = event.args[2];
+                const tokenId = value.toNumber();
+                await tx(
+                  await writeContracts.NFTMarket.createMarketItem(
+                    "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+                    address,
+                    tokenId,
+                    ethers.utils.parseUnits(priceNFT.toString(), "ether"),
+                    {
+                      value: listingPrice.toString(),
+                    },
+                  ),
+                );
+                notification.info({
+                  message: "Local Transaction Sent",
+                });
+                window.location.href = "/home";
+              }}
+            >
+              Create NFT
+            </Button>
+
+            <pre style={{ padding: 16, width: 500, margin: "auto", paddingBottom: 150 }}>{ipfsContent}</pre>
+          </Route>
+
+          <Route path="/redeem">
+            <div style={{ width: 600, margin: "auto", marginTop: 32, paddingBottom: 32 }}>
+              <b>Contract Address</b>
+              <Input
+                value={fnftContractAddress}
+                placeHolder="Address"
+                onChange={e => {
+                  setFnftCA(e.target.value);
+                }}
+              />
+              <b>Token Id</b>
+              <Input
+                value={fnftTokenId}
+                placeHolder="1"
+                onChange={e => {
+                  setFnftTokenId(e.target.value);
+                }}
+              />
+              <Button
+                style={{ margin: 8 }}
+                loading={sending}
+                size="large"
+                shape="round"
+                type="primary"
+                onClick={async () => {
+                  const provider = new ethers.providers.JsonRpcProvider();
+                  const erc20Contract = new ethers.Contract(fnftContractAddress, erc20, provider);
+                  try {
+                    await erc20Contract.connect(userSigner).approve(fractionalize, erc20Contract.totalSupply());
+                    tx(await writeContracts.Fractionalize.unlockAndRedeem(fnftTokenId));
+                    notification.info({
+                      message: "Successfully Redeemed",
+                    });
+                    window.location.href = "/";
+                  } catch (err) {
+                    notification.error({
+                      message: "Insufficient Funds!",
+                    });
+                  }
+                }}
+              >
+                Redeem
+              </Button>
             </div>
           </Route>
 

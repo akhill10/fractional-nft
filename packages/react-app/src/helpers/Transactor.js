@@ -120,10 +120,10 @@ export default function Transactor(providerOrSigner, gasPrice, etherscan) {
       } catch (e) {
         console.log(e);
         console.log("Transaction Error:", e.message);
-        notification.error({
-          message: "Transaction Error",
-          description: e.data ? e.data.message : e.reason ? e.reason : e.message,
-        });
+        // notification.error({
+        //   message: "Transaction Error",
+        //   description: e.data ? e.data.message : e.reason ? e.reason : e.message,
+        // });
         if (callback && typeof callback === "function") {
           callback(e);
         }
