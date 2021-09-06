@@ -12,7 +12,7 @@ contract NFTMarket {
   Counters.Counter private _itemsSold;
 
   address payable owner;
-  uint256 listingPrice = 0.025 ether;
+  uint256 listingPrice = 0.00000000025 ether;
 
   constructor() public {
     owner = payable(msg.sender);
