@@ -624,7 +624,7 @@ function App(props) {
                         <Button
                           onClick={async () => {
                             console.log("writeContracts", writeContracts);
-                            await writeContracts.NFT.approve("0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9", id);
+                            await writeContracts.NFT.approve(fractionalize, id);
                             await writeContracts.Fractionalize.lockAndMint(id, "1000000000000000000000");
                             const ecr20Frac = await writeContracts.Fractionalize.erc20s(id);
                             console.log("ALLLL", ecr20Frac);
@@ -686,7 +686,7 @@ function App(props) {
                             const pricex = ethers.utils.parseUnits(item.price.toString(), "ether");
                             await tx(
                               writeContracts.NFTMarket.createMarketSale(
-                                "0x9fE46736679d2D9a65F0992F2272dE9f3c7fa6e0",
+                                nftaddress,
                                 item.id,
                                 {
                                   value: pricex,
