@@ -19,7 +19,7 @@ Then
 git clone https://github.com/pawanakhil/fractional-nft
 ```
 ```
-cd scaffold-eth-NFT-Marketplace
+cd fractional-nft
 yarn install
 yarn start
 ```
@@ -27,14 +27,14 @@ yarn start
 > in a second terminal window:
 
 ```
-cd scaffold-eth-NFT-Marketplace
+cd fractional-nft
 yarn chain
 ```
 
 > in a third terminal window:
 
 ```
-cd scaffold-eth-NFT-Marketplace
+cd fractional-nft
 yarn deploy
 ```
 
