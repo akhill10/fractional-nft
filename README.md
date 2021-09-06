@@ -16,7 +16,7 @@ Go to packages/react-app/src/supabaseConfig.js and update the details ( Supabase
 Then 
 
 ```
-git clone https://github.com/pawanakhil/scaffold-eth-NFT-Marketplace
+git clone https://github.com/pawanakhil/fractional-nft
 ```
 ```
 cd scaffold-eth-NFT-Marketplace
