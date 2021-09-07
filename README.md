@@ -14,7 +14,7 @@ Required: [Node](https://nodejs.org/dist/latest-v12.x/) plus [Yarn](https://clas
 
 Go to packages/react-app/src/supabaseConfig.js and update the details ( projectUrl, projectKey and imageBaseUrl ).
 
-Then 
+## Usage
 
 ```
 git clone https://github.com/pawanakhil/fractional-nft
