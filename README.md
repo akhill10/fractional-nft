@@ -8,10 +8,11 @@
 # 🏃‍♀️ Quick Start
 Required: [Node](https://nodejs.org/dist/latest-v12.x/) plus [Yarn](https://classic.yarnpkg.com/en/docs/install/#mac-stable) and [Git](https://git-scm.com/downloads)
 
-## Need Supabase 
-> Go to https://supabase.io/ , Create an project, under the project create a storage and make it as public 
+## Requirements 
+### Supabase 
+> Go to https://supabase.io/ 🚀 ,  Create an project. Under the project create a storage and make it as public. 
 
-Go to packages/react-app/src/supabaseConfig.js and update the details ( Supabase Project Url, Project Key and Storage Base Url).
+Go to packages/react-app/src/supabaseConfig.js and update the details ( projectUrl, projectKey and imageBaseUrl ).
 
 Then 
 
